@@ -19,9 +19,33 @@ def help():
         "\n" + Fore.RED + "auto_view(game_num)" + Fore.RESET + "\tdisplays the game moves in gif format" +
         "\n" + Fore.RED + "auto_analyse(game_num)" + Fore.RESET + "\tdisplays game moves and engine suggestions in gif format")
 
-def convert_datetime(d):
-    if isinstance(d, datetime.datetime):
-        return d.__str__()
+def fen_to_image(fen):
+    ranks = fen.split('/')
+    uni = {
+        "k": "\u2654",
+        "q": "\u2655",
+        "r": "\u2656",
+        "b": "\u2657",
+        "n": "\u2658",
+        "p": "\u2659",
+        "K": "\u265A",
+        "Q": "\u265B",
+        "R": "\u265C",
+        "B": "\u265D",
+        "N": "\u265E",
+        "P": "\u265F"
+    }
+
+    for i in range(17):
+        if i % 2 == 0:
+            print("._._._._._._._._.")
+        else:
+            for j in range(len(ranks[int(i / 2)])):
+                if ranks[int(i / 2)][j:j+1].isalpha():
+                    print("|" + uni[ranks[int(i / 2)][j:j+1]], end='')
+                else:
+                    print("| " * int(ranks[int(i / 2)][j:j+1]), end='')
+            print("|")
 
 username = input(Fore.LIGHTMAGENTA_EX + "Enter your lichess username: " + Fore.RESET)
 
