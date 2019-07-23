@@ -5,11 +5,23 @@ from colorama import Fore
 
 def print_games(games):
     for i in range(len(games)):
-        print(Fore.LIGHTGREEN_EX + "\n" + str(i) + ". " + games[i]['players']['white']['user']['name']
-            + " " + str(games[i]['players']['white']['rating']) + " vs. "
-            + games[i]['players']['black']['user']['name'] + " "
-            + str(games[i]['players']['black']['rating']) + " | "
-            + games[i]['createdAt'].strftime("%B %d, %Y") + Fore.RESET)
+        if 'user' not in games[i]['players']['white']:
+            print(Fore.LIGHTGREEN_EX + "\n" + str(i) + ". Computer Level "
+                + str(games[i]['players']['white']['aiLevel']) + " vs. "
+                + games[i]['players']['black']['user']['name'] + " "
+                + str(games[i]['players']['black']['rating']) + " | "
+                + games[i]['createdAt'].strftime("%B %d, %Y") + Fore.RESET)
+        elif 'user' not in games[i]['players']['black']:
+            print(Fore.LIGHTGREEN_EX + "\n" + str(i) + ". " + games[i]['players']['white']['user']['name']
+                + " " + str(games[i]['players']['white']['rating']) + " vs. Computer Level "
+                + str(games[i]['players']['black']['aiLevel']) + " | "
+                + games[i]['createdAt'].strftime("%B %d, %Y") + Fore.RESET)
+        else:
+            print(Fore.LIGHTGREEN_EX + "\n" + str(i) + ". " + games[i]['players']['white']['user']['name']
+                + " " + str(games[i]['players']['white']['rating']) + " vs. "
+                + games[i]['players']['black']['user']['name'] + " "
+                + str(games[i]['players']['black']['rating']) + " | "
+                + games[i]['createdAt'].strftime("%B %d, %Y") + Fore.RESET)
 
 def help():
     print("\nLIST OF COMMANDS:" +
@@ -60,31 +72,35 @@ def game_to_fenlist(moves):
         fenlist.append(board.fen().split(' ')[0])
     return fenlist
 
-username = input(Fore.LIGHTMAGENTA_EX + "Enter your lichess username: " + Fore.RESET)
+def main():  
+    username = input(Fore.LIGHTMAGENTA_EX + "Enter your lichess username: " + Fore.RESET)
 
-client = berserk.Client()
+    client = berserk.Client()
 
-try:
-    game_generator = client.games.export_by_player(username, as_pgn=False, max=10)
+    try:
+        game_generator = client.games.export_by_player(username, as_pgn=False, max=10)
 
-    game_list = list(game_generator)
+        game_list = list(game_generator)
 
-    command = input("\n\u265A " + Fore.CYAN + "Welcome to ChessView!" + Fore.RESET + "\u2654\nType 'help' for info on commands\n>")
-    while(command != 'exit'):
-        if (command == 'list'):
-            print_games(game_list)
-        elif (command == 'help'):
-            help()
-        elif (command.startswith('info(')):
-            print(Fore.LIGHTCYAN_EX)
-            print(game_list[int(command[5:6])])
-            print(Fore.RESET)
-        elif (command.startswith('view(')):
-            list = game_to_fenlist(game_list[int(command[5:6])]['moves'])
-            for game in list:
-                fen_to_image(game)
-        command = input(">")
+        command = input("\n\u265A " + Fore.CYAN + "Welcome to ChessView!" + Fore.RESET + "\u2654\nType 'help' for info on commands\n>")
+        while(command != 'exit'):
+            if (command == 'list'):
+                print_games(game_list)
+            elif (command == 'help'):
+                help()
+            elif (command.startswith('info(')):
+                print(Fore.LIGHTCYAN_EX)
+                print(game_list[int(command[5:6])])
+                print(Fore.RESET)
+            elif (command.startswith('view(')):
+                games = game_to_fenlist(game_list[int(command[5:6])]['moves'])
+                for game in games:
+                    fen_to_image(game)
+            command = input(">")
 
-except Exception as e:
-    #print("Username not found or does not exist.")
-    print(e)
+    except Exception as e:
+        #print("Username not found or does not exist.")
+        print(e)
+
+if __name__ == "__main__":
+    main()
