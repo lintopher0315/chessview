@@ -1,4 +1,6 @@
 import berserk
+import chess.pgn
+import io
 from colorama import Fore
 
 def print_games(games):
@@ -47,6 +49,17 @@ def fen_to_image(fen):
                     print("| " * int(ranks[int(i / 2)][j:j+1]), end='')
             print("|")
 
+def game_to_fenlist(moves):
+    fenlist = []
+    pgn = io.StringIO(moves)
+    game = chess.pgn.read_game(pgn)
+    board = game.board()
+    fenlist.append(board.fen().split(' ')[0])
+    for move in game.mainline_moves():
+        board.push(move)
+        fenlist.append(board.fen().split(' ')[0])
+    return fenlist
+
 username = input(Fore.LIGHTMAGENTA_EX + "Enter your lichess username: " + Fore.RESET)
 
 client = berserk.Client()
@@ -66,6 +79,10 @@ try:
             print(Fore.LIGHTCYAN_EX)
             print(game_list[int(command[5:6])])
             print(Fore.RESET)
+        elif (command.startswith('view(')):
+            list = game_to_fenlist(game_list[int(command[5:6])]['moves'])
+            for game in list:
+                fen_to_image(game)
         command = input(">")
 
 except Exception as e:
