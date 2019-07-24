@@ -1,37 +1,44 @@
+from prompt_toolkit import prompt, print_formatted_text, Application
+from prompt_toolkit.buffer import Buffer
+from prompt_toolkit.layout.containers import VSplit, Window
+from prompt_toolkit.layout.controls import BufferControl, FormattedTextControl
+from prompt_toolkit.layout.layout import Layout
+from prompt_toolkit.key_binding import KeyBindings
+from prompt_toolkit.formatted_text import HTML
+from prompt_toolkit.application import get_app
 import berserk
 import chess.pgn
 import io
-from colorama import Fore
 
 def print_games(games):
     for i in range(len(games)):
         if 'user' not in games[i]['players']['white']:
-            print(Fore.LIGHTGREEN_EX + "\n" + str(i) + ". Computer Level "
+            print_formatted_text("\n" + str(i) + ". Computer Level "
                 + str(games[i]['players']['white']['aiLevel']) + " vs. "
                 + games[i]['players']['black']['user']['name'] + " "
                 + str(games[i]['players']['black']['rating']) + " | "
-                + games[i]['createdAt'].strftime("%B %d, %Y") + Fore.RESET)
+                + games[i]['createdAt'].strftime("%B %d, %Y"))
         elif 'user' not in games[i]['players']['black']:
-            print(Fore.LIGHTGREEN_EX + "\n" + str(i) + ". " + games[i]['players']['white']['user']['name']
+            print_formatted_text("\n" + str(i) + ". " + games[i]['players']['white']['user']['name']
                 + " " + str(games[i]['players']['white']['rating']) + " vs. Computer Level "
                 + str(games[i]['players']['black']['aiLevel']) + " | "
-                + games[i]['createdAt'].strftime("%B %d, %Y") + Fore.RESET)
+                + games[i]['createdAt'].strftime("%B %d, %Y"))
         else:
-            print(Fore.LIGHTGREEN_EX + "\n" + str(i) + ". " + games[i]['players']['white']['user']['name']
+            print_formatted_text("\n" + str(i) + ". " + games[i]['players']['white']['user']['name']
                 + " " + str(games[i]['players']['white']['rating']) + " vs. "
                 + games[i]['players']['black']['user']['name'] + " "
                 + str(games[i]['players']['black']['rating']) + " | "
-                + games[i]['createdAt'].strftime("%B %d, %Y") + Fore.RESET)
+                + games[i]['createdAt'].strftime("%B %d, %Y"))
 
 def help():
-    print("\nLIST OF COMMANDS:" +
-        "\n" + Fore.RED + "exit" + Fore.RESET + "\t\t\tquits the program" +
-        "\n" + Fore.RED + "list" + Fore.RESET + "\t\t\tlists the 10 most recent games played" +
-        "\n" + Fore.RED + "info(game_num)" + Fore.RESET + "\t\tdisplays game info" +
-        "\n" + Fore.RED + "view(game_num)" + Fore.RESET + "\t\tdisplays the game moves in slideshow format" +
-        "\n" + Fore.RED + "analyse(game_num)" + Fore.RESET + "\tdisplays game moves along with engine suggestions" +
-        "\n" + Fore.RED + "auto_view(game_num)" + Fore.RESET + "\tdisplays the game moves in gif format" +
-        "\n" + Fore.RED + "auto_analyse(game_num)" + Fore.RESET + "\tdisplays game moves and engine suggestions in gif format")
+    print_formatted_text(HTML("\nLIST OF COMMANDS:\n"
+        "<red>exit</red>\t\t\tquits the program\n"
+        "<red>list</red>\t\t\tlists the 10 most recent games played\n"
+        "<red>info(game_num)</red>\t\tdisplays game info\n"
+        "<red>view(game_num)</red>\t\tdisplays the game moves in slideshow format\n"
+        "<red>analyse(game_num)</red>\tdisplays game moves along with engine suggestions\n"
+        "<red>auto_view(game_num)</red>\tdisplays the game moves in gif format\n"
+        "<red>auto_analyse(game_num)</red>\tdisplays game moves and engine suggestions in gif format"))
 
 def fen_to_image(fen):
     ranks = fen.split('/')
@@ -49,17 +56,24 @@ def fen_to_image(fen):
         "N": "\u265E",
         "P": "\u265F"
     }
-
-    for i in range(17):
-        if i % 2 == 0:
-            print("._._._._._._._._.")
-        else:
-            for j in range(len(ranks[int(i / 2)])):
-                if ranks[int(i / 2)][j:j+1].isalpha():
-                    print("|" + uni[ranks[int(i / 2)][j:j+1]], end='')
+    board = ''
+    color = True
+    for i in range(8):
+        for j in range(len(ranks[i])):
+            if ranks[i][j:j+1].isalpha():
+                if ranks[i][j:j+1].islower():
+                    board = board + '<p bg="salmon" fg="ansiblack">' + uni[ranks[i][j:j+1].upper()] + ' </p>' if color else board + '<p bg="brown" fg="ansiblack">' + uni[ranks[i][j:j+1].upper()] + ' </p>'
                 else:
-                    print("| " * int(ranks[int(i / 2)][j:j+1]), end='')
-            print("|")
+                    board = board + '<p bg="salmon">' + uni[ranks[i][j:j+1]] + ' </p>' if color else board + '<p bg="brown">' + uni[ranks[i][j:j+1]] + ' </p>'
+                color = not color
+            else:
+                for k in range(int(ranks[i][j:j+1])):
+                    board = board + '<p bg="salmon">  </p>' if color else board + '<p bg="brown">  </p>'
+                    color = not color
+            
+        board = board + '<p>\n</p>'
+        color = not color
+    return board
 
 def game_to_fenlist(moves):
     fenlist = []
@@ -72,32 +86,69 @@ def game_to_fenlist(moves):
         fenlist.append(board.fen().split(' ')[0])
     return fenlist
 
-def main():  
-    username = input(Fore.LIGHTMAGENTA_EX + "Enter your lichess username: " + Fore.RESET)
+def main():
+
+    username = prompt(HTML('<violet>Enter your lichess username: </violet>'))
 
     client = berserk.Client()
+
+    kb = KeyBindings()
+    move_place = 0
+    moves = []
+
+    @kb.add('c-q')
+    def exit_(event):
+        nonlocal move_place
+        nonlocal moves
+        move_place = 0
+        moves = []
+        event.app.exit()
+
+    @kb.add('c-a')
+    def prev(event):
+        nonlocal move_place
+        if move_place > 0:
+            move_place = move_place - 1
+        event.app.layout.container.children[2].content.text = HTML(fen_to_image(moves[move_place]))
+        event.app.reset()
+
+    @kb.add('c-d')
+    def next(event):
+        nonlocal move_place
+        nonlocal moves
+        if move_place < len(moves) - 1:
+            move_place = move_place + 1
+        event.app.layout.container.children[2].content.text = HTML(fen_to_image(moves[move_place]))
+        event.app.reset()
 
     try:
         game_generator = client.games.export_by_player(username, as_pgn=False, max=10)
 
         game_list = list(game_generator)
 
-        command = input("\n\u265A " + Fore.CYAN + "Welcome to ChessView!" + Fore.RESET + "\u2654\nType 'help' for info on commands\n>")
+        command = prompt(HTML('\n\u265A <cyan>Welcome to ChessView!</cyan> \u2654\nType "help" for info on commands\n>'))
         while(command != 'exit'):
             if (command == 'list'):
                 print_games(game_list)
             elif (command == 'help'):
                 help()
             elif (command.startswith('info(')):
-                print(Fore.LIGHTCYAN_EX)
-                print(game_list[int(command[5:6])])
-                print(Fore.RESET)
+                print_formatted_text(game_list[int(command[5:6])])
             elif (command.startswith('view(')):
-                games = game_to_fenlist(game_list[int(command[5:6])]['moves'])
-                for game in games:
-                    fen_to_image(game)
-            command = input(">")
+                
+                moves = game_to_fenlist(game_list[int(command[5:6])]['moves'])
+                
+                root_container = VSplit([
+                    Window(content=FormattedTextControl(text=HTML(str(move_place)))),
+                    Window(width=1, char='|'),
+                    Window(content=FormattedTextControl(text=HTML(fen_to_image(moves[0]))))
+                ])
 
+                layout = Layout(root_container)
+                app = Application(key_bindings=kb, layout=layout, full_screen=True)
+                app.run()
+
+            command = prompt(HTML('>'))
     except Exception as e:
         #print("Username not found or does not exist.")
         print(e)
