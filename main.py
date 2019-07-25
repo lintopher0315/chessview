@@ -95,6 +95,8 @@ def main():
     kb = KeyBindings()
     move_place = 0
     moves = []
+    game_list = []
+    game_number = 0
 
     @kb.add('c-q')
     def exit_(event):
@@ -102,6 +104,8 @@ def main():
         nonlocal moves
         move_place = 0
         moves = []
+        game_list = []
+        game_number = 0
         event.app.exit()
 
     @kb.add('c-a')
@@ -110,7 +114,10 @@ def main():
         if move_place > 0:
             move_place = move_place - 1
         event.app.layout.container.children[2].content.text = HTML(fen_to_image(moves[move_place]))
-        event.app.reset()
+        event.app.layout.container.children[0].content.text = ' '.join(game_list[game_number]['moves'].split(' ')[0:move_place])
+
+        event.app.renderer._last_size: Optional[Size] = None
+        event.app.renderer.output.flush()
 
     @kb.add('c-d')
     def next(event):
@@ -119,7 +126,10 @@ def main():
         if move_place < len(moves) - 1:
             move_place = move_place + 1
         event.app.layout.container.children[2].content.text = HTML(fen_to_image(moves[move_place]))
-        event.app.reset()
+        event.app.layout.container.children[0].content.text = ' '.join(game_list[game_number]['moves'].split(' ')[0:move_place])
+
+        event.app.renderer._last_size: Optional[Size] = None
+        event.app.renderer.output.flush()
 
     try:
         game_generator = client.games.export_by_player(username, as_pgn=False, max=10)
@@ -135,13 +145,13 @@ def main():
             elif (command.startswith('info(')):
                 print_formatted_text(game_list[int(command[5:6])])
             elif (command.startswith('view(')):
-                
+                game_number = int(command[5:6])
                 moves = game_to_fenlist(game_list[int(command[5:6])]['moves'])
                 
                 root_container = VSplit([
-                    Window(content=FormattedTextControl(text=HTML(str(move_place)))),
-                    Window(width=1, char='|'),
-                    Window(content=FormattedTextControl(text=HTML(fen_to_image(moves[0]))))
+                    Window(width=30, content=FormattedTextControl(), dont_extend_width=True, wrap_lines=True, allow_scroll_beyond_bottom=True, always_hide_cursor=True),
+                    Window(width=1, char='|', always_hide_cursor=True),
+                    Window(content=FormattedTextControl(text=HTML(fen_to_image(moves[0]))), always_hide_cursor=True)
                 ])
 
                 layout = Layout(root_container)
