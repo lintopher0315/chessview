@@ -58,6 +58,7 @@ def fen_to_image(fen):
     board = ''
     color = True
     for i in range(8):
+        board += '                 '
         for j in range(len(ranks[i])):
             if ranks[i][j:j+1].isalpha():
                 if ranks[i][j:j+1].islower():
@@ -115,21 +116,32 @@ def main():
 
         chess_text = ''
         if 'user' not in game_list[game_number]['players']['black']:
-            chess_text += '\nComputer Level ' + str(game_list[game_number]['players']['black']['aiLevel']) + '\n\n'
+            chess_text += '\n\n\n                 Computer Level ' + str(game_list[game_number]['players']['black']['aiLevel']) + '\n\n'
         else:
-            chess_text += '\n' + game_list[game_number]['players']['black']['user']['name'] + ' (' + str(game_list[game_number]['players']['black']['rating']) + ')\n\n'
+            chess_text += '\n\n\n                 ' + game_list[game_number]['players']['black']['user']['name'] + ' (' + str(game_list[game_number]['players']['black']['rating']) + ')\n\n'
         chess_text += fen_to_image(moves[move_place])
         if 'user' not in game_list[game_number]['players']['white']:
-            chess_text += '\nComputer Level ' + str(game_list[game_number]['players']['white']['aiLevel']) + '\n'
+            chess_text += '\n                 Computer Level ' + str(game_list[game_number]['players']['white']['aiLevel']) + '\n'
         else:
-            chess_text += '\n' + game_list[game_number]['players']['white']['user']['name'] + ' (' + str(game_list[game_number]['players']['white']['rating']) + ')\n'
+            chess_text += '\n                 ' + game_list[game_number]['players']['white']['user']['name'] + ' (' + str(game_list[game_number]['players']['white']['rating']) + ')\n'
+        chess_text += '\n\n\n                 <violet>Ctrl-A: Previous Move</violet>\n                 <violet>Ctrl-D: Next Move</violet>\n                 <violet>Ctrl-Q: Exit</violet>'
         event.app.layout.container.children[2].content.text = HTML(chess_text)
 
-        move_list = game_list[game_number]['moves'].split(' ')[0:move_place]
+        move_start = 0
+        move_list = []
+        if move_place >= 40:
+            move_start = move_place - 40
+            if move_place % 2 == 0:
+                move_list = game_list[game_number]['moves'].split(' ')[move_start:move_place]
+            else:
+                move_list = game_list[game_number]['moves'].split(' ')[move_start - 1:move_place]
+        else:
+            move_list = game_list[game_number]['moves'].split(' ')[move_start:move_place]
+
         event.app.layout.container.children[0].content.text = ''
         for i in range(len(move_list)):
             if i % 2 == 0:
-                event.app.layout.container.children[0].content.text += '\n' + str((int(i / 2)) + 1) + '.'
+                event.app.layout.container.children[0].content.text += '\n' + str((int(i / 2) + int(move_start / 2)) + 1) + '.'
             event.app.layout.container.children[0].content.text += move_list[i] + ' '
 
         event.app.renderer._last_size: Optional[Size] = None
@@ -144,21 +156,32 @@ def main():
 
         chess_text = ''
         if 'user' not in game_list[game_number]['players']['black']:
-            chess_text += '\nComputer Level ' + str(game_list[game_number]['players']['black']['aiLevel']) + '\n\n'
+            chess_text += '\n\n\n                 Computer Level ' + str(game_list[game_number]['players']['black']['aiLevel']) + '\n\n'
         else:
-            chess_text += '\n' + game_list[game_number]['players']['black']['user']['name'] + ' (' + str(game_list[game_number]['players']['black']['rating']) + ')\n\n'
+            chess_text += '\n\n\n                 ' + game_list[game_number]['players']['black']['user']['name'] + ' (' + str(game_list[game_number]['players']['black']['rating']) + ')\n\n'
         chess_text += fen_to_image(moves[move_place])
         if 'user' not in game_list[game_number]['players']['white']:
-            chess_text += '\nComputer Level ' + str(game_list[game_number]['players']['white']['aiLevel']) + '\n'
+            chess_text += '\n                 Computer Level ' + str(game_list[game_number]['players']['white']['aiLevel']) + '\n'
         else:
-            chess_text += '\n' + game_list[game_number]['players']['white']['user']['name'] + ' (' + str(game_list[game_number]['players']['white']['rating']) + ')\n'
+            chess_text += '\n                 ' + game_list[game_number]['players']['white']['user']['name'] + ' (' + str(game_list[game_number]['players']['white']['rating']) + ')\n'
+        chess_text += '\n\n\n                 <violet>Ctrl-A: Previous Move</violet>\n                 <violet>Ctrl-D: Next Move</violet>\n                 <violet>Ctrl-Q: Exit</violet>'
         event.app.layout.container.children[2].content.text = HTML(chess_text)
 
-        move_list = game_list[game_number]['moves'].split(' ')[0:move_place]
+        move_start = 0
+        move_list = []
+        if move_place >= 40:
+            move_start = move_place - 40
+            if move_place % 2 == 0:
+                move_list = game_list[game_number]['moves'].split(' ')[move_start:move_place]
+            else:
+                move_list = game_list[game_number]['moves'].split(' ')[move_start - 1:move_place]
+        else:
+            move_list = game_list[game_number]['moves'].split(' ')[move_start:move_place]
+
         event.app.layout.container.children[0].content.text = ''
         for i in range(len(move_list)):
             if i % 2 == 0:
-                event.app.layout.container.children[0].content.text += '\n' + str((int(i / 2)) + 1) + '.'
+                event.app.layout.container.children[0].content.text += '\n' + str((int(i / 2) + int(move_start / 2)) + 1) + '.'
             event.app.layout.container.children[0].content.text += move_list[i] + ' '
 
         event.app.renderer._last_size: Optional[Size] = None
@@ -183,14 +206,15 @@ def main():
 
                 chess_text = ''
                 if 'user' not in game_list[game_number]['players']['black']:
-                    chess_text += '\nComputer Level ' + str(game_list[game_number]['players']['black']['aiLevel']) + '\n\n'
+                    chess_text += '\n\n\n                 Computer Level ' + str(game_list[game_number]['players']['black']['aiLevel']) + '\n\n'
                 else:
-                    chess_text += '\n' + game_list[game_number]['players']['black']['user']['name'] + ' (' + str(game_list[game_number]['players']['black']['rating']) + ')\n\n'
+                    chess_text += '\n\n\n                 ' + game_list[game_number]['players']['black']['user']['name'] + ' (' + str(game_list[game_number]['players']['black']['rating']) + ')\n\n'
                 chess_text += fen_to_image(moves[0])
                 if 'user' not in game_list[game_number]['players']['white']:
-                    chess_text += '\nComputer Level ' + str(game_list[game_number]['players']['white']['aiLevel']) + '\n'
+                    chess_text += '\n                 Computer Level ' + str(game_list[game_number]['players']['white']['aiLevel']) + '\n'
                 else:
-                    chess_text += '\n' + game_list[game_number]['players']['white']['user']['name'] + ' (' + str(game_list[game_number]['players']['white']['rating']) + ')\n'
+                    chess_text += '\n                 ' + game_list[game_number]['players']['white']['user']['name'] + ' (' + str(game_list[game_number]['players']['white']['rating']) + ')\n'
+                chess_text += '\n\n\n                 <violet>Ctrl-A: Previous Move</violet>\n                 <violet>Ctrl-D: Next Move</violet>\n                 <violet>Ctrl-Q: Exit</violet>'
                 
                 root_container = VSplit([
                     Window(width=30, content=FormattedTextControl(), dont_extend_width=True, wrap_lines=True, allow_scroll_beyond_bottom=True, always_hide_cursor=True),
