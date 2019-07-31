@@ -7,6 +7,7 @@ from prompt_toolkit.key_binding import KeyBindings
 from prompt_toolkit.formatted_text import HTML
 import berserk
 import chess.pgn
+import threading
 import io
 
 def print_games(games):
@@ -86,17 +87,58 @@ def game_to_fenlist(moves):
         fenlist.append(board.fen().split(' ')[0])
     return fenlist
 
+def set_simple_chess_text(game_list, game_number, moves, move_place):
+    chess_text = ''
+    if 'user' not in game_list[game_number]['players']['black']:
+        chess_text += '\n\n\n                 Computer Level ' + str(game_list[game_number]['players']['black']['aiLevel']) + '\n\n'
+    else:
+        chess_text += '\n\n\n                 ' + game_list[game_number]['players']['black']['user']['name'] + ' (' + str(game_list[game_number]['players']['black']['rating']) + ')\n\n'
+    chess_text += fen_to_image(moves[move_place])
+    if 'user' not in game_list[game_number]['players']['white']:
+        chess_text += '\n                 Computer Level ' + str(game_list[game_number]['players']['white']['aiLevel']) + '\n'
+    else:
+        chess_text += '\n                 ' + game_list[game_number]['players']['white']['user']['name'] + ' (' + str(game_list[game_number]['players']['white']['rating']) + ')\n'
+    chess_text += '\n\n\n                 <violet>Ctrl-A: Previous Move</violet>\n                 <violet>Ctrl-D: Next Move</violet>\n                 <violet>Ctrl-Q: Exit</violet>'
+    
+    return chess_text
+
+def display_simple_screen(event, game_list, game_number, moves, move_place):
+    chess_text = set_simple_chess_text(game_list, game_number, moves, move_place)
+    event.app.layout.container.children[2].content.text = HTML(chess_text)
+
+    move_start = 0
+    move_list = []
+    if move_place >= 40:
+        move_start = move_place - 40
+        if move_place % 2 == 0:
+            move_list = game_list[game_number]['moves'].split(' ')[move_start:move_place]
+        else:
+            move_list = game_list[game_number]['moves'].split(' ')[move_start - 1:move_place]
+    else:
+        move_list = game_list[game_number]['moves'].split(' ')[move_start:move_place]
+
+    event.app.layout.container.children[0].content.text = ''
+    for i in range(len(move_list)):
+        if i % 2 == 0:
+            event.app.layout.container.children[0].content.text += '\n' + str((int(i / 2) + int(move_start / 2)) + 1) + '.'
+        event.app.layout.container.children[0].content.text += move_list[i] + ' '
+
+    event.app.renderer._last_size: Optional[Size] = None
+    event.app.renderer.output.flush()
+
 def main():
 
     username = prompt(HTML('<violet>Enter your lichess username: </violet>'))
 
     client = berserk.Client()
 
-    kb = KeyBindings()
     move_place = 0
     moves = []
     game_list = []
     game_number = 0
+    gif_play = False
+
+    kb = KeyBindings()
 
     @kb.add('c-q')
     def exit_(event):
@@ -111,41 +153,11 @@ def main():
     @kb.add('c-a')
     def prev(event):
         nonlocal move_place
+        nonlocal moves
         if move_place > 0:
             move_place = move_place - 1
 
-        chess_text = ''
-        if 'user' not in game_list[game_number]['players']['black']:
-            chess_text += '\n\n\n                 Computer Level ' + str(game_list[game_number]['players']['black']['aiLevel']) + '\n\n'
-        else:
-            chess_text += '\n\n\n                 ' + game_list[game_number]['players']['black']['user']['name'] + ' (' + str(game_list[game_number]['players']['black']['rating']) + ')\n\n'
-        chess_text += fen_to_image(moves[move_place])
-        if 'user' not in game_list[game_number]['players']['white']:
-            chess_text += '\n                 Computer Level ' + str(game_list[game_number]['players']['white']['aiLevel']) + '\n'
-        else:
-            chess_text += '\n                 ' + game_list[game_number]['players']['white']['user']['name'] + ' (' + str(game_list[game_number]['players']['white']['rating']) + ')\n'
-        chess_text += '\n\n\n                 <violet>Ctrl-A: Previous Move</violet>\n                 <violet>Ctrl-D: Next Move</violet>\n                 <violet>Ctrl-Q: Exit</violet>'
-        event.app.layout.container.children[2].content.text = HTML(chess_text)
-
-        move_start = 0
-        move_list = []
-        if move_place >= 40:
-            move_start = move_place - 40
-            if move_place % 2 == 0:
-                move_list = game_list[game_number]['moves'].split(' ')[move_start:move_place]
-            else:
-                move_list = game_list[game_number]['moves'].split(' ')[move_start - 1:move_place]
-        else:
-            move_list = game_list[game_number]['moves'].split(' ')[move_start:move_place]
-
-        event.app.layout.container.children[0].content.text = ''
-        for i in range(len(move_list)):
-            if i % 2 == 0:
-                event.app.layout.container.children[0].content.text += '\n' + str((int(i / 2) + int(move_start / 2)) + 1) + '.'
-            event.app.layout.container.children[0].content.text += move_list[i] + ' '
-
-        event.app.renderer._last_size: Optional[Size] = None
-        event.app.renderer.output.flush()
+        display_simple_screen(event, game_list, game_number, moves, move_place)
 
     @kb.add('c-d')
     def next(event):
@@ -154,38 +166,41 @@ def main():
         if move_place < len(moves) - 1:
             move_place = move_place + 1
 
-        chess_text = ''
-        if 'user' not in game_list[game_number]['players']['black']:
-            chess_text += '\n\n\n                 Computer Level ' + str(game_list[game_number]['players']['black']['aiLevel']) + '\n\n'
-        else:
-            chess_text += '\n\n\n                 ' + game_list[game_number]['players']['black']['user']['name'] + ' (' + str(game_list[game_number]['players']['black']['rating']) + ')\n\n'
-        chess_text += fen_to_image(moves[move_place])
-        if 'user' not in game_list[game_number]['players']['white']:
-            chess_text += '\n                 Computer Level ' + str(game_list[game_number]['players']['white']['aiLevel']) + '\n'
-        else:
-            chess_text += '\n                 ' + game_list[game_number]['players']['white']['user']['name'] + ' (' + str(game_list[game_number]['players']['white']['rating']) + ')\n'
-        chess_text += '\n\n\n                 <violet>Ctrl-A: Previous Move</violet>\n                 <violet>Ctrl-D: Next Move</violet>\n                 <violet>Ctrl-Q: Exit</violet>'
-        event.app.layout.container.children[2].content.text = HTML(chess_text)
+        display_simple_screen(event, game_list, game_number, moves, move_place)
 
-        move_start = 0
-        move_list = []
-        if move_place >= 40:
-            move_start = move_place - 40
-            if move_place % 2 == 0:
-                move_list = game_list[game_number]['moves'].split(' ')[move_start:move_place]
-            else:
-                move_list = game_list[game_number]['moves'].split(' ')[move_start - 1:move_place]
-        else:
-            move_list = game_list[game_number]['moves'].split(' ')[move_start:move_place]
+    gifb = KeyBindings()
 
-        event.app.layout.container.children[0].content.text = ''
-        for i in range(len(move_list)):
-            if i % 2 == 0:
-                event.app.layout.container.children[0].content.text += '\n' + str((int(i / 2) + int(move_start / 2)) + 1) + '.'
-            event.app.layout.container.children[0].content.text += move_list[i] + ' '
+    @gifb.add('c-q')
+    def gif_exit(event):
+        nonlocal move_place
+        nonlocal moves
+        move_place = 0
+        moves = []
+        game_list = []
+        game_number = 0
+        event.app.exit()
 
-        event.app.renderer._last_size: Optional[Size] = None
-        event.app.renderer.output.flush()
+    timer = None
+    
+    @gifb.add('c-g')
+    def start(event):
+        nonlocal move_place
+        nonlocal moves
+        '''
+        while move_place < len(moves):
+            display_simple_screen(event, game_list, game_number, moves, move_place)
+            move_place += 1
+            #time.sleep(1)
+        '''
+        def gif_time():
+            nonlocal move_place
+            nonlocal moves
+            if move_place < len(moves):
+                display_simple_screen(event, game_list, game_number, moves, move_place)
+                move_place += 1
+
+        timer = threading.Timer(1.0, gif_time)
+        timer.start()
 
     try:
         game_generator = client.games.export_by_player(username, as_pgn=False, max=10)
@@ -204,17 +219,7 @@ def main():
                 game_number = int(command[5:6])
                 moves = game_to_fenlist(game_list[int(command[5:6])]['moves'])
 
-                chess_text = ''
-                if 'user' not in game_list[game_number]['players']['black']:
-                    chess_text += '\n\n\n                 Computer Level ' + str(game_list[game_number]['players']['black']['aiLevel']) + '\n\n'
-                else:
-                    chess_text += '\n\n\n                 ' + game_list[game_number]['players']['black']['user']['name'] + ' (' + str(game_list[game_number]['players']['black']['rating']) + ')\n\n'
-                chess_text += fen_to_image(moves[0])
-                if 'user' not in game_list[game_number]['players']['white']:
-                    chess_text += '\n                 Computer Level ' + str(game_list[game_number]['players']['white']['aiLevel']) + '\n'
-                else:
-                    chess_text += '\n                 ' + game_list[game_number]['players']['white']['user']['name'] + ' (' + str(game_list[game_number]['players']['white']['rating']) + ')\n'
-                chess_text += '\n\n\n                 <violet>Ctrl-A: Previous Move</violet>\n                 <violet>Ctrl-D: Next Move</violet>\n                 <violet>Ctrl-Q: Exit</violet>'
+                chess_text = set_simple_chess_text(game_list, game_number, moves, 0)
                 
                 root_container = VSplit([
                     Window(width=30, content=FormattedTextControl(), dont_extend_width=True, wrap_lines=True, allow_scroll_beyond_bottom=True, always_hide_cursor=True),
@@ -224,6 +229,22 @@ def main():
 
                 layout = Layout(root_container)
                 app = Application(key_bindings=kb, layout=layout, full_screen=True)
+                app.run()
+
+            elif (command.startswith('auto_view(')):
+                game_number = int(command[10:11])
+                moves = game_to_fenlist(game_list[int(command[10:11])]['moves'])
+
+                chess_text = set_simple_chess_text(game_list, game_number, moves, 0)
+                
+                root_container = VSplit([
+                    Window(width=30, content=FormattedTextControl(), dont_extend_width=True, wrap_lines=True, allow_scroll_beyond_bottom=True, always_hide_cursor=True),
+                    Window(width=1, char='|', always_hide_cursor=True),
+                    Window(content=FormattedTextControl(text=HTML(chess_text)), always_hide_cursor=True)
+                ])
+
+                layout = Layout(root_container)
+                app = Application(key_bindings=gifb, layout=layout, full_screen=True)
                 app.run()
 
             command = prompt(HTML('>'))
