@@ -6,9 +6,12 @@ from prompt_toolkit.layout.layout import Layout
 from prompt_toolkit.key_binding import KeyBindings
 from prompt_toolkit.formatted_text import HTML
 import berserk
+import logging
+import chess
 import chess.pgn
-import threading
+import chess.engine
 import io
+import re
 
 def print_games(games):
     for i in range(len(games)):
@@ -41,7 +44,9 @@ def help():
         "<red>auto_analyse(game_num)</red>\tdisplays game moves and engine suggestions in gif format"))
 
 def fen_to_image(fen):
-    ranks = fen.split('/')
+    ranks = re.split('/| ', fen)
+    ranks = ranks[:8]
+    logging.info(ranks)
     uni = {
         "k": "\u2654",
         "q": "\u2655",
@@ -59,7 +64,7 @@ def fen_to_image(fen):
     board = ''
     color = True
     for i in range(8):
-        board += '                 '
+        board += '                 ' + str(8 - i)
         for j in range(len(ranks[i])):
             if ranks[i][j:j+1].isalpha():
                 if ranks[i][j:j+1].islower():
@@ -74,6 +79,7 @@ def fen_to_image(fen):
             
         board = board + '<p>\n</p>'
         color = not color
+    board += '                  a b c d e f g h'
     return board
 
 def game_to_fenlist(moves):
@@ -84,27 +90,40 @@ def game_to_fenlist(moves):
     fenlist.append(board.fen().split(' ')[0])
     for move in game.mainline_moves():
         board.push(move)
-        fenlist.append(board.fen().split(' ')[0])
+        fenlist.append(board.fen())
     return fenlist
+
+def analysis_to_move_archive(moves, engine):
+    move_archive = []
+    pgn = io.StringIO(moves)
+    game = chess.pgn.read_game(pgn)
+    board = game.board()
+    for move in game.mainline_moves():
+        curr = get_engine_moves(board.fen(), engine)
+        board.push(board.parse_san(get_engine_moves(board.fen(), engine)[0]))
+        curr.append(board.fen())
+        board.pop()
+        board.push(move)
+        move_archive.append(curr)
+    return move_archive
 
 def set_simple_chess_text(game_list, game_number, moves, move_place):
     chess_text = ''
     if 'user' not in game_list[game_number]['players']['black']:
-        chess_text += '\n\n\n                 Computer Level ' + str(game_list[game_number]['players']['black']['aiLevel']) + '\n\n'
+        chess_text += '<gold>\n\n\n                 Computer Level ' + str(game_list[game_number]['players']['black']['aiLevel']) + '\n\n</gold>'
     else:
-        chess_text += '\n\n\n                 ' + game_list[game_number]['players']['black']['user']['name'] + ' (' + str(game_list[game_number]['players']['black']['rating']) + ')\n\n'
+        chess_text += '<gold>\n\n\n                 ' + game_list[game_number]['players']['black']['user']['name'] + ' (' + str(game_list[game_number]['players']['black']['rating']) + ')\n\n</gold>'
     chess_text += fen_to_image(moves[move_place])
     if 'user' not in game_list[game_number]['players']['white']:
-        chess_text += '\n                 Computer Level ' + str(game_list[game_number]['players']['white']['aiLevel']) + '\n'
+        chess_text += '<gold>\n\n                 Computer Level ' + str(game_list[game_number]['players']['white']['aiLevel']) + '\n</gold>'
     else:
-        chess_text += '\n                 ' + game_list[game_number]['players']['white']['user']['name'] + ' (' + str(game_list[game_number]['players']['white']['rating']) + ')\n'
+        chess_text += '<gold>\n\n                 ' + game_list[game_number]['players']['white']['user']['name'] + ' (' + str(game_list[game_number]['players']['white']['rating']) + ')\n</gold>'
     chess_text += '\n\n\n                 <violet>Ctrl-A: Previous Move</violet>\n                 <violet>Ctrl-D: Next Move</violet>\n                 <violet>Ctrl-Q: Exit</violet>'
     
     return chess_text
 
-def display_simple_screen(event, game_list, game_number, moves, move_place):
-    chess_text = set_simple_chess_text(game_list, game_number, moves, move_place)
-    event.app.layout.container.children[2].content.text = HTML(chess_text)
+def set_simple_history_text(event, game_list, game_number, move_place):
+    history_text = ''
 
     move_start = 0
     move_list = []
@@ -123,8 +142,74 @@ def display_simple_screen(event, game_list, game_number, moves, move_place):
             event.app.layout.container.children[0].content.text += '\n' + str((int(i / 2) + int(move_start / 2)) + 1) + '.'
         event.app.layout.container.children[0].content.text += move_list[i] + ' '
 
+def display_simple_screen(event, game_list, game_number, moves, move_place):
+    chess_text = set_simple_chess_text(game_list, game_number, moves, move_place)
+    event.app.layout.container.children[2].content.text = HTML(chess_text)
+
+    set_simple_history_text(event, game_list, game_number, move_place)
+
     event.app.renderer._last_size: Optional[Size] = None
     event.app.renderer.output.flush()
+
+def set_analysis_chess_text(game_list, game_number, moves, move_place, analysis_archive):
+    chess_text = ''
+    if 'user' not in game_list[game_number]['players']['black']:
+        chess_text += '<gold>                 Computer Level ' + str(game_list[game_number]['players']['black']['aiLevel']) + '\n</gold>'
+    else:
+        chess_text += '<gold>                 ' + game_list[game_number]['players']['black']['user']['name'] + ' (' + str(game_list[game_number]['players']['black']['rating']) + ')\n</gold>'
+    chess_text += fen_to_image(moves[move_place])
+    if 'user' not in game_list[game_number]['players']['white']:
+        chess_text += '<gold>\n                 Computer Level ' + str(game_list[game_number]['players']['white']['aiLevel']) + '\n</gold>'
+    else:
+        chess_text += '<gold>\n                 ' + game_list[game_number]['players']['white']['user']['name'] + ' (' + str(game_list[game_number]['players']['white']['rating']) + ')\n</gold>'
+    
+    if move_place > 0:
+        chess_text += fen_to_image(analysis_archive[move_place - 1][len(analysis_archive[move_place - 1]) - 1])
+
+    return chess_text
+
+def set_analysis_history_text(event, game_list, game_number, move_place, analysis_archive):
+    history_text = ''
+
+    move_start = 0
+    move_list = []
+    if move_place >= 40:
+        move_start = move_place - 40
+        if move_place % 2 == 0:
+            move_list = game_list[game_number]['moves'].split(' ')[move_start:move_place]
+        else:
+            move_list = game_list[game_number]['moves'].split(' ')[move_start - 1:move_place]
+    else:
+        move_list = game_list[game_number]['moves'].split(' ')[move_start:move_place]
+
+    event.app.layout.container.children[0].content.text = ''
+    for i in range(len(move_list)):
+        if i % 2 == 0:
+            event.app.layout.container.children[0].content.text += '\n' + str((int(i / 2) + int(move_start / 2)) + 1) + '.'
+        event.app.layout.container.children[0].content.text += move_list[i] + ' '
+
+def display_analysis_screen(event, game_list, game_number, moves, move_place, analysis_archive):
+    chess_text = set_analysis_chess_text(game_list, game_number, moves, move_place, analysis_archive)
+    event.app.layout.container.children[2].content.text = HTML(chess_text)
+
+    set_analysis_history_text(event, game_list, game_number, move_place, analysis_archive)
+
+    event.app.renderer._last_size: Optional[Size] = None
+    event.app.renderer.output.flush()
+
+def get_position_score(fen, engine):
+    board = chess.Board(fen)
+    info = engine.analyse(board, chess.engine.Limit(depth=20))
+    return(info["score"])
+
+def get_engine_moves(fen, engine):
+    engine_moves = []
+    board = chess.Board(fen)
+    info = engine.analyse(board, chess.engine.Limit(depth=10), multipv=3)
+
+    for i in range(len(info)):
+        engine_moves.append(board.san(info[i]['pv'][0]))
+    return engine_moves
 
 def main():
 
@@ -132,13 +217,19 @@ def main():
 
     client = berserk.Client()
 
+    engine = chess.engine.SimpleEngine.popen_uci("/home/christopher/stockfish_10_x64")
+
+    #get_engine_moves("r1bqkbnr/p1pp1ppp/1pn5/4p3/2B1P3/5Q2/PPPP1PPP/RNB1K1NR w KQkq - 2 4", engine)
+    #analysis_to_move_archive('e4 d5 exd5 Qxd5 Nc3 Qe6+ Be2 Nf6 Nf3 c6 O-O b5 Re1 Qd6 a3 e6 d3 a5 b3 h6 Bb2 a4 bxa4 Ra5 axb5 Qd8 bxc6 Ba6 Ne4 Nxe4 dxe4 Nxc6 Qxd8+ Nxd8 Rad1 Bxe2 Rxe2 Nc6 Red2 f6 e5 Be7 exf6 Bxf6 Bxf6 gxf6 Rd6 Rc5 Rxe6+ Kf7 Ree1 Ne5 Nxe5+ fxe5 h3 Ra8 Ra1 Ra4 f3 Kf6 Re4 Ra7 a4 h5 Ra2 Ra8 Kf2 Rac8 Re2 R8c6 Ke1 Ra5 Kd1 Rc4 Re4 Rc8 Kd2 Ra6 c3 Rc5 Rb2 Rca5 Rb5 Rxa4 Rbxe5 Rxe4 Rxe4 Ra2+ Ke3 Rxg2 c4 Kf5 c5 Rc2 Kd4 Rd2+ Kc3 Rf2 Re3 Kf4 Kd4 Rd2+ Rd3 Rc2 Kd5 Kg3 c6 Kxh3 Kd6 Kg2 Kd7 Kg3 c7 h4 c8=Q Rxc8 Kxc8 Kg2 f4 Kh2 f5 Kg2 f6 Kf2 f7 Ke2 Rh3 Ke1 f8=Q Ke2 Qf3+ Ke1 Rh2 h3 Qh1#', engine)
+
     move_place = 0
     moves = []
     game_list = []
     game_number = 0
-    gif_play = False
+    analysis_archive = []
 
     kb = KeyBindings()
+    kba = KeyBindings()
 
     @kb.add('c-q')
     def exit_(event):
@@ -168,39 +259,35 @@ def main():
 
         display_simple_screen(event, game_list, game_number, moves, move_place)
 
-    gifb = KeyBindings()
-
-    @gifb.add('c-q')
-    def gif_exit(event):
+    @kba.add('c-q')
+    def exit_(event):
         nonlocal move_place
         nonlocal moves
         move_place = 0
         moves = []
         game_list = []
         game_number = 0
+        analysis_archive = []
         event.app.exit()
 
-    timer = None
-    
-    @gifb.add('c-g')
-    def start(event):
+    @kba.add('c-a')
+    def prev(event):
         nonlocal move_place
         nonlocal moves
-        '''
-        while move_place < len(moves):
-            display_simple_screen(event, game_list, game_number, moves, move_place)
-            move_place += 1
-            #time.sleep(1)
-        '''
-        def gif_time():
-            nonlocal move_place
-            nonlocal moves
-            if move_place < len(moves):
-                display_simple_screen(event, game_list, game_number, moves, move_place)
-                move_place += 1
+        if move_place > 0:
+            move_place = move_place - 1
 
-        timer = threading.Timer(1.0, gif_time)
-        timer.start()
+        display_analysis_screen(event, game_list, game_number, moves, move_place, analysis_archive)
+
+    @kba.add('c-d')
+    def next(event):
+        nonlocal move_place
+        nonlocal moves
+        if move_place < len(moves) - 1:
+            move_place = move_place + 1
+
+        display_analysis_screen(event, game_list, game_number, moves, move_place, analysis_archive)
+
 
     try:
         game_generator = client.games.export_by_player(username, as_pgn=False, max=10)
@@ -217,7 +304,7 @@ def main():
                 print_formatted_text(game_list[int(command[5:6])])
             elif (command.startswith('view(')):
                 game_number = int(command[5:6])
-                moves = game_to_fenlist(game_list[int(command[5:6])]['moves'])
+                moves = game_to_fenlist(game_list[game_number]['moves'])
 
                 chess_text = set_simple_chess_text(game_list, game_number, moves, 0)
                 
@@ -231,12 +318,13 @@ def main():
                 app = Application(key_bindings=kb, layout=layout, full_screen=True)
                 app.run()
 
-            elif (command.startswith('auto_view(')):
-                game_number = int(command[10:11])
-                moves = game_to_fenlist(game_list[int(command[10:11])]['moves'])
+            elif (command.startswith('analyze(')):
+                game_number = int(command[8:9])
+                moves = game_to_fenlist(game_list[game_number]['moves'])
+                analysis_archive = analysis_to_move_archive(game_list[game_number]['moves'], engine)
 
-                chess_text = set_simple_chess_text(game_list, game_number, moves, 0)
-                
+                chess_text = set_analysis_chess_text(game_list, game_number, moves, 0, analysis_archive)
+
                 root_container = VSplit([
                     Window(width=30, content=FormattedTextControl(), dont_extend_width=True, wrap_lines=True, allow_scroll_beyond_bottom=True, always_hide_cursor=True),
                     Window(width=1, char='|', always_hide_cursor=True),
@@ -244,10 +332,11 @@ def main():
                 ])
 
                 layout = Layout(root_container)
-                app = Application(key_bindings=gifb, layout=layout, full_screen=True)
+                app = Application(key_bindings=kba, layout=layout, full_screen=True)
                 app.run()
 
             command = prompt(HTML('>'))
+        engine.quit()
     except Exception as e:
         #print("Username not found or does not exist.")
         print(e)
