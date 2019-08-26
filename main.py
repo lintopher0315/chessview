@@ -46,7 +46,6 @@ def help():
 def fen_to_image(fen):
     ranks = re.split('/| ', fen)
     ranks = ranks[:8]
-    logging.info(ranks)
     uni = {
         "k": "\u2654",
         "q": "\u2655",
@@ -100,7 +99,7 @@ def analysis_to_move_archive(moves, engine):
     board = game.board()
     for move in game.mainline_moves():
         curr = get_engine_moves(board.fen(), engine)
-        board.push(board.parse_san(get_engine_moves(board.fen(), engine)[0]))
+        board.push(board.parse_san(curr[0]))
         curr.append(board.fen())
         board.pop()
         board.push(move)
@@ -136,11 +135,11 @@ def set_simple_history_text(event, game_list, game_number, move_place):
     else:
         move_list = game_list[game_number]['moves'].split(' ')[move_start:move_place]
 
-    event.app.layout.container.children[0].content.text = ''
     for i in range(len(move_list)):
         if i % 2 == 0:
-            event.app.layout.container.children[0].content.text += '\n' + str((int(i / 2) + int(move_start / 2)) + 1) + '.'
-        event.app.layout.container.children[0].content.text += move_list[i] + ' '
+            history_text += '\n' + str((int(i / 2) + int(move_start / 2)) + 1) + '.'
+        history_text += move_list[i] + ' '
+    event.app.layout.container.children[0].content.text = history_text
 
 def display_simple_screen(event, game_list, game_number, moves, move_place):
     chess_text = set_simple_chess_text(game_list, game_number, moves, move_place)
@@ -182,11 +181,20 @@ def set_analysis_history_text(event, game_list, game_number, move_place, analysi
     else:
         move_list = game_list[game_number]['moves'].split(' ')[move_start:move_place]
 
-    event.app.layout.container.children[0].content.text = ''
     for i in range(len(move_list)):
         if i % 2 == 0:
-            event.app.layout.container.children[0].content.text += '\n' + str((int(i / 2) + int(move_start / 2)) + 1) + '.'
-        event.app.layout.container.children[0].content.text += move_list[i] + ' '
+            history_text += '\n' + str((int(i / 2) + int(move_start / 2)) + 1) + '.'
+        if move_start % 2 == 0:
+            if move_list[i] in analysis_archive[i + move_start]:
+                history_text += '<lime>' + move_list[i] + '</lime> '
+            else:
+                history_text += move_list[i] + ' '
+        else:
+            if move_list[i] in analysis_archive[i + move_start - 1]:
+                history_text += '<lime>' + move_list[i] + '</lime> '
+            else:
+                history_text += move_list[i] + ' '
+    event.app.layout.container.children[0].content.text = HTML(history_text)
 
 def display_analysis_screen(event, game_list, game_number, moves, move_place, analysis_archive):
     chess_text = set_analysis_chess_text(game_list, game_number, moves, move_place, analysis_archive)
@@ -205,22 +213,19 @@ def get_position_score(fen, engine):
 def get_engine_moves(fen, engine):
     engine_moves = []
     board = chess.Board(fen)
-    info = engine.analyse(board, chess.engine.Limit(depth=10), multipv=3)
+    info = engine.analyse(board, chess.engine.Limit(depth=15), multipv=3)
 
     for i in range(len(info)):
         engine_moves.append(board.san(info[i]['pv'][0]))
     return engine_moves
 
 def main():
-
+    logging.basicConfig(filename='errors.log',level=logging.DEBUG)
     username = prompt(HTML('<violet>Enter your lichess username: </violet>'))
 
     client = berserk.Client()
 
     engine = chess.engine.SimpleEngine.popen_uci("/home/christopher/stockfish_10_x64")
-
-    #get_engine_moves("r1bqkbnr/p1pp1ppp/1pn5/4p3/2B1P3/5Q2/PPPP1PPP/RNB1K1NR w KQkq - 2 4", engine)
-    #analysis_to_move_archive('e4 d5 exd5 Qxd5 Nc3 Qe6+ Be2 Nf6 Nf3 c6 O-O b5 Re1 Qd6 a3 e6 d3 a5 b3 h6 Bb2 a4 bxa4 Ra5 axb5 Qd8 bxc6 Ba6 Ne4 Nxe4 dxe4 Nxc6 Qxd8+ Nxd8 Rad1 Bxe2 Rxe2 Nc6 Red2 f6 e5 Be7 exf6 Bxf6 Bxf6 gxf6 Rd6 Rc5 Rxe6+ Kf7 Ree1 Ne5 Nxe5+ fxe5 h3 Ra8 Ra1 Ra4 f3 Kf6 Re4 Ra7 a4 h5 Ra2 Ra8 Kf2 Rac8 Re2 R8c6 Ke1 Ra5 Kd1 Rc4 Re4 Rc8 Kd2 Ra6 c3 Rc5 Rb2 Rca5 Rb5 Rxa4 Rbxe5 Rxe4 Rxe4 Ra2+ Ke3 Rxg2 c4 Kf5 c5 Rc2 Kd4 Rd2+ Kc3 Rf2 Re3 Kf4 Kd4 Rd2+ Rd3 Rc2 Kd5 Kg3 c6 Kxh3 Kd6 Kg2 Kd7 Kg3 c7 h4 c8=Q Rxc8 Kxc8 Kg2 f4 Kh2 f5 Kg2 f6 Kf2 f7 Ke2 Rh3 Ke1 f8=Q Ke2 Qf3+ Ke1 Rh2 h3 Qh1#', engine)
 
     move_place = 0
     moves = []
