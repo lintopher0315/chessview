@@ -156,14 +156,15 @@ def set_analysis_chess_text(game_list, game_number, moves, move_place, analysis_
         chess_text += '<gold>                 Computer Level ' + str(game_list[game_number]['players']['black']['aiLevel']) + '\n</gold>'
     else:
         chess_text += '<gold>                 ' + game_list[game_number]['players']['black']['user']['name'] + ' (' + str(game_list[game_number]['players']['black']['rating']) + ')\n</gold>'
+    
     chess_text += fen_to_image(moves[move_place])
+    if move_place > 0:
+        chess_text += fen_to_image(analysis_archive[move_place - 1][len(analysis_archive[move_place - 1]) - 1])
+
     if 'user' not in game_list[game_number]['players']['white']:
         chess_text += '<gold>\n                 Computer Level ' + str(game_list[game_number]['players']['white']['aiLevel']) + '\n</gold>'
     else:
         chess_text += '<gold>\n                 ' + game_list[game_number]['players']['white']['user']['name'] + ' (' + str(game_list[game_number]['players']['white']['rating']) + ')\n</gold>'
-    
-    if move_place > 0:
-        chess_text += fen_to_image(analysis_archive[move_place - 1][len(analysis_archive[move_place - 1]) - 1])
 
     return chess_text
 
@@ -205,7 +206,7 @@ def display_analysis_screen(event, game_list, game_number, moves, move_place, an
     event.app.renderer._last_size: Optional[Size] = None
     event.app.renderer.output.flush()
 
-def get_position_score(fen, engine):
+def get_position_score(fen, engine):        # finish centipawn loss
     board = chess.Board(fen)
     info = engine.analyse(board, chess.engine.Limit(depth=20))
     return(info["score"])
