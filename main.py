@@ -5,8 +5,8 @@ from prompt_toolkit.layout.controls import BufferControl, FormattedTextControl
 from prompt_toolkit.layout.layout import Layout
 from prompt_toolkit.key_binding import KeyBindings
 from prompt_toolkit.formatted_text import HTML
+from pathlib import Path
 import berserk
-import logging
 import chess
 import chess.pgn
 import chess.engine
@@ -39,9 +39,7 @@ def help():
         "<red>list</red>\t\t\tlists the 10 most recent games played\n"
         "<red>info(game_num)</red>\t\tdisplays game info\n"
         "<red>view(game_num)</red>\t\tdisplays the game moves in slideshow format\n"
-        "<red>analyse(game_num)</red>\tdisplays game moves along with engine suggestions\n"
-        "<red>auto_view(game_num)</red>\tdisplays the game moves in gif format\n"
-        "<red>auto_analyse(game_num)</red>\tdisplays game moves and engine suggestions in gif format"))
+        "<red>analyse(game_num)</red>\tdisplays game moves along with engine suggestions\n\tCtrl-A: Prev. Move | Ctrl-D: Next Move | Ctrl-Q: Exit"))
 
 def fen_to_image(fen):
     ranks = re.split('/| ', fen)
@@ -158,13 +156,21 @@ def set_analysis_chess_text(game_list, game_number, moves, move_place, analysis_
         chess_text += '<gold>                 ' + game_list[game_number]['players']['black']['user']['name'] + ' (' + str(game_list[game_number]['players']['black']['rating']) + ')\n</gold>'
     
     chess_text += fen_to_image(moves[move_place])
-    if move_place > 0:
-        chess_text += fen_to_image(analysis_archive[move_place - 1][len(analysis_archive[move_place - 1]) - 1])
 
     if 'user' not in game_list[game_number]['players']['white']:
         chess_text += '<gold>\n                 Computer Level ' + str(game_list[game_number]['players']['white']['aiLevel']) + '\n</gold>'
     else:
-        chess_text += '<gold>\n                 ' + game_list[game_number]['players']['white']['user']['name'] + ' (' + str(game_list[game_number]['players']['white']['rating']) + ')\n</gold>'
+        chess_text += '<gold>\n                 ' + game_list[game_number]['players']['white']['user']['name'] + ' (' + str(game_list[game_number]['players']['white']['rating']) + ')\n\n</gold>'
+    chess_text += '<deeppink>                   ANALYSIS BOARD\n</deeppink>'
+
+    if move_place > 0:
+        chess_text += fen_to_image(analysis_archive[move_place - 1][len(analysis_archive[move_place - 1]) - 1])
+        if move_place == 1:
+            chess_text += '\n\n                The best move is <hotpink>' + analysis_archive[move_place - 1][0] + '</hotpink>'
+        else:
+            chess_text += '\n\n           The best move after <hotpink>' + game_list[game_number]['moves'].split(' ')[move_place - 2] + '</hotpink> is <hotpink>' + analysis_archive[move_place - 1][0] + '</hotpink>'
+    else:
+        chess_text += fen_to_image('rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq -')
 
     return chess_text
 
@@ -221,12 +227,13 @@ def get_engine_moves(fen, engine):
     return engine_moves
 
 def main():
-    logging.basicConfig(filename='errors.log',level=logging.DEBUG)
+
     username = prompt(HTML('<violet>Enter your lichess username: </violet>'))
 
     client = berserk.Client()
 
-    engine = chess.engine.SimpleEngine.popen_uci("/home/christopher/stockfish_10_x64")
+    home = str(Path.home())
+    engine = chess.engine.SimpleEngine.popen_uci(home + "/stockfish_10_x64")
 
     move_place = 0
     moves = []
