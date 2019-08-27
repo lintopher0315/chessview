@@ -10,6 +10,7 @@ import berserk
 import chess
 import chess.pgn
 import chess.engine
+import sys
 import io
 import re
 
@@ -228,12 +229,12 @@ def get_engine_moves(fen, engine):
 
 def main():
 
+    home = str(Path.home())
+    engine = chess.engine.SimpleEngine.popen_uci(home + "/stockfish_10_x64")
+
     username = prompt(HTML('<violet>Enter your lichess username: </violet>'))
 
     client = berserk.Client()
-
-    home = str(Path.home())
-    engine = chess.engine.SimpleEngine.popen_uci(home + "/stockfish_10_x64")
 
     move_place = 0
     moves = []
@@ -311,11 +312,14 @@ def main():
         while(command != 'exit'):
             if (command == 'list'):
                 print_games(game_list)
+
             elif (command == 'help'):
                 help()
+
             elif (command.startswith('info(')):
                 print_formatted_text(game_list[int(command[5:6])])
-            elif (command.startswith('view(')):
+
+            elif (re.match('view\(\d\)', command)):
                 game_number = int(command[5:6])
                 moves = game_to_fenlist(game_list[game_number]['moves'])
 
@@ -331,7 +335,7 @@ def main():
                 app = Application(key_bindings=kb, layout=layout, full_screen=True)
                 app.run()
 
-            elif (command.startswith('analyze(')):
+            elif (re.match('analyze\(\d\)', command)):
                 game_number = int(command[8:9])
                 moves = game_to_fenlist(game_list[game_number]['moves'])
                 analysis_archive = analysis_to_move_archive(game_list[game_number]['moves'], engine)
@@ -349,10 +353,9 @@ def main():
                 app.run()
 
             command = prompt(HTML('>'))
-        engine.quit()
     except Exception as e:
-        #print("Username not found or does not exist.")
-        print(e)
+        print("Username not found or does not exist.")
+    engine.quit()
 
 if __name__ == "__main__":
     main()
