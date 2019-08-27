@@ -4,15 +4,12 @@ A lightweight command line interface for viewing and analyzing lichess games.
 
 To download the executable file, go under 'Releases'.
 
-```
-![](https://imgur.com/IA98RSW)
-```
-```
-![](https://imgur.com/LKNf0bR)
-```
-```
-![](https://imgur.com/zZnBF0r)
-```
+
+![Imgur](https://i.imgur.com/IA98RSW.png)
+
+![Imgur](https://i.imgur.com/LKNf0bR.png)
+
+![Imgur](https://i.imgur.com/zZnBF0r.png)
 
 ## Features
 
@@ -28,6 +25,7 @@ In order to use ChessView, you must have the Stockfish engine within the home di
 https://stockfishchess.org/
 
 Linux:      `/home/<username>/`
+
 Windows:    `<root>/Users/<username>/`
 
 Simply download the engine from the link above, extract the zip file, and copy the corresponding Stockfish executable into the correct folder.
